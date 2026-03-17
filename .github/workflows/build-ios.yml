@@ -54,6 +54,51 @@ jobs:
           path: ${{ runner.temp }}/AiteApp-unsigned.ipa
           retention-days: 30
 
+  build-simulator:
+    name: Build for Simulator (Appetize.io)
+    runs-on: macos-14
+
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Select latest Xcode
+        run: |
+          XCODE_PATH=$(ls -d /Applications/Xcode*.app 2>/dev/null | sort -V | tail -1)
+          echo "Using Xcode at: $XCODE_PATH"
+          sudo xcode-select -s "$XCODE_PATH/Contents/Developer"
+
+      - name: Show Xcode version
+        run: xcodebuild -version
+
+      - name: Build for Simulator
+        run: |
+          xcodebuild \
+            -project AiteApp.xcodeproj \
+            -scheme AiteApp \
+            -sdk iphonesimulator \
+            -configuration Release \
+            -arch arm64 \
+            -derivedDataPath $RUNNER_TEMP/DerivedData \
+            build \
+            CODE_SIGN_IDENTITY="" \
+            CODE_SIGNING_REQUIRED=NO \
+            CODE_SIGNING_ALLOWED=NO
+
+      - name: Create zip for Appetize.io
+        run: |
+          APP_PATH=$(find $RUNNER_TEMP/DerivedData -name "AiteApp.app" -type d | head -1)
+          echo "Found app at: $APP_PATH"
+          cd "$(dirname "$APP_PATH")"
+          zip -r $RUNNER_TEMP/AiteApp-simulator.zip AiteApp.app
+
+      - name: Upload Simulator build
+        uses: actions/upload-artifact@v4
+        with:
+          name: AiteApp-simulator-appetize
+          path: ${{ runner.temp }}/AiteApp-simulator.zip
+          retention-days: 30
+
   build-signed:
     name: Build Signed IPA (for App Store / TestFlight)
     runs-on: macos-14
